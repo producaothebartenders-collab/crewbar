@@ -61,6 +61,50 @@ export function emptyEmployerProfile(userId: string): EmployerProfile {
   }
 }
 
+/** Exact wait after `quizAttemptAt` before another attempt is allowed. */
+export const QUIZ_COOLDOWN_DAYS = 30
+export const QUIZ_COOLDOWN_MS = QUIZ_COOLDOWN_DAYS * 24 * 60 * 60 * 1000
+
+export interface QuizCooldown {
+  /** True when there is no attempt yet, or the 30×24h window has elapsed. */
+  canStart: boolean
+  /** ISO instant when a retake opens. Null when `canStart` is true. */
+  nextAttemptAt: string | null
+}
+
+/**
+ * Cooldown is an exact 30×24h interval from `quizAttemptAt` (not calendar days),
+ * so the rule is the same in every timezone. A missing or invalid timestamp
+ * counts as a first attempt and can always start.
+ */
+export function quizCooldown(
+  quizAttemptAt: string | null | undefined,
+  now: Date = new Date(),
+): QuizCooldown {
+  if (!quizAttemptAt) return { canStart: true, nextAttemptAt: null }
+
+  const attemptedMs = new Date(quizAttemptAt).getTime()
+  if (Number.isNaN(attemptedMs)) return { canStart: true, nextAttemptAt: null }
+
+  const nextMs = attemptedMs + QUIZ_COOLDOWN_MS
+  if (now.getTime() >= nextMs) return { canStart: true, nextAttemptAt: null }
+
+  return { canStart: false, nextAttemptAt: new Date(nextMs).toISOString() }
+}
+
+export function formatDateTimeBR(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+export function quizCooldownMessage(nextAttemptAt: string): string {
+  return `Você poderá refazer o quiz em ${formatDateTimeBR(nextAttemptAt)}.`
+}
+
 export function badgeColor(badge: QuizBadge | string | null | undefined): string {
   switch (badge) {
     case 'Excelente':

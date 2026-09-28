@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { emptyBartenderProfile, emptyEmployerProfile } from '../lib/profile'
+import { emptyBartenderProfile, emptyEmployerProfile, quizCooldown } from '../lib/profile'
 import { loadData, resetData, saveData, uid } from '../lib/storage'
 import type {
   AppData,
@@ -313,13 +313,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setQuizResult = useCallback(
     (score: number, badge: string) => {
       if (!currentUser || currentUser.role !== 'bartender') return
+      if (!quizCooldown(bartenderProfile?.quizAttemptAt).canStart) return
       updateBartenderProfile({
         quizScore: score,
         quizBadge: badge,
         quizAttemptAt: new Date().toISOString(),
       })
     },
-    [currentUser, updateBartenderProfile]
+    [bartenderProfile?.quizAttemptAt, currentUser, updateBartenderProfile]
   )
 
   const resetDemo = useCallback(() => {

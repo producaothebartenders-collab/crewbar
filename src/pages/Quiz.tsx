@@ -2,7 +2,13 @@ import { useMemo, useState } from 'react'
 import { Shell } from '../components/Layout'
 import { badgeFromScore, QUIZ_QUESTIONS, scoreFromAnswers } from '../data/quiz'
 import { useApp } from '../context/AppContext'
-import { badgeColor } from '../lib/profile'
+import {
+  QUIZ_COOLDOWN_DAYS,
+  QUIZ_COOLDOWN_MS,
+  badgeColor,
+  quizCooldown,
+  quizCooldownMessage,
+} from '../lib/profile'
 
 export default function QuizPage() {
   const { bartenderProfile, setQuizResult } = useApp()
@@ -12,10 +18,13 @@ export default function QuizPage() {
     () => Array(QUIZ_QUESTIONS.length).fill(null)
   )
   const [finished, setFinished] = useState(false)
+  const [resultNextAt, setResultNextAt] = useState<string | null>(null)
 
   const score = useMemo(() => scoreFromAnswers(answers), [answers])
   const badge = useMemo(() => badgeFromScore(score), [score])
+  const cooldown = quizCooldown(bartenderProfile?.quizAttemptAt)
   const q = QUIZ_QUESTIONS[index]
+  const hasPreviousResult = bartenderProfile?.quizScore != null
 
   const select = (opt: number) => {
     setAnswers((prev) => {
@@ -25,51 +34,26 @@ export default function QuizPage() {
     })
   }
 
-  const next = () => {
-    if (index < QUIZ_QUESTIONS.length - 1) setIndex(index + 1)
-    else {
-      setFinished(true)
-      setQuizResult(scoreFromAnswers(answers), badgeFromScore(scoreFromAnswers(answers)))
-    }
-  }
-
-  const retake = () => {
+  const begin = () => {
+    if (!quizCooldown(bartenderProfile?.quizAttemptAt).canStart) return
     setAnswers(Array(QUIZ_QUESTIONS.length).fill(null))
     setIndex(0)
     setFinished(false)
     setStarted(true)
   }
 
-  if (!started && !finished) {
-    return (
-      <Shell>
-        <h1 className="page-title">Quiz de conhecimento</h1>
-        <p className="page-sub">
-          15 perguntas de clássicos, técnica e atendimento. Uma tentativa por vez — pode refazer
-          depois de ver o resultado.
-        </p>
-        {bartenderProfile?.quizScore != null && (
-          <div className="card">
-            <strong>Último resultado</strong>
-            <div style={{ marginTop: 8, fontSize: '1.4rem', fontWeight: 800 }}>
-              {bartenderProfile.quizScore}%
-            </div>
-            <span
-              className="badge"
-              style={{ color: badgeColor(bartenderProfile.quizBadge), marginTop: 8 }}
-            >
-              {bartenderProfile.quizBadge}
-            </span>
-          </div>
-        )}
-        <button type="button" className="btn btn-primary btn-block" onClick={() => setStarted(true)}>
-          {bartenderProfile?.quizScore != null ? 'Refazer quiz' : 'Começar'}
-        </button>
-      </Shell>
-    )
+  const next = () => {
+    if (index < QUIZ_QUESTIONS.length - 1) {
+      setIndex(index + 1)
+      return
+    }
+    setResultNextAt(new Date(Date.now() + QUIZ_COOLDOWN_MS).toISOString())
+    setFinished(true)
+    setQuizResult(scoreFromAnswers(answers), badgeFromScore(scoreFromAnswers(answers)))
   }
 
   if (finished) {
+    const nextAttemptAt = cooldown.nextAttemptAt ?? resultNextAt
     return (
       <Shell>
         <h1 className="page-title">Resultado</h1>
@@ -89,9 +73,42 @@ export default function QuizPage() {
             Excelente 90+ · Bom 75–89 · Regular 60–74 · Iniciante &lt;60
           </p>
         </div>
-        <button type="button" className="btn btn-primary btn-block" onClick={retake}>
-          Refazer agora
-        </button>
+        {nextAttemptAt && <div className="alert info">{quizCooldownMessage(nextAttemptAt)}</div>}
+      </Shell>
+    )
+  }
+
+  if (!started || !cooldown.canStart) {
+    return (
+      <Shell>
+        <h1 className="page-title">Quiz de conhecimento</h1>
+        <p className="page-sub">
+          15 perguntas de clássicos, técnica e atendimento. Depois de concluir, espere{' '}
+          {QUIZ_COOLDOWN_DAYS} dias para refazer.
+        </p>
+        {hasPreviousResult && (
+          <div className="card">
+            <strong>Último resultado</strong>
+            <div style={{ marginTop: 8, fontSize: '1.4rem', fontWeight: 800 }}>
+              {bartenderProfile?.quizScore}%
+            </div>
+            <span
+              className="badge"
+              style={{ color: badgeColor(bartenderProfile?.quizBadge), marginTop: 8 }}
+            >
+              {bartenderProfile?.quizBadge}
+            </span>
+          </div>
+        )}
+        {cooldown.canStart ? (
+          <button type="button" className="btn btn-primary btn-block" onClick={begin}>
+            {hasPreviousResult ? 'Refazer quiz' : 'Começar'}
+          </button>
+        ) : (
+          cooldown.nextAttemptAt && (
+            <div className="alert info">{quizCooldownMessage(cooldown.nextAttemptAt)}</div>
+          )
+        )}
       </Shell>
     )
   }

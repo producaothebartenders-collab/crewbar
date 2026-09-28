@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { Shell } from '../components/Layout'
 import { EXPERIENCE_OPTIONS, SKILL_OPTIONS } from '../data/skills'
 import { useApp } from '../context/AppContext'
-import { bartenderCompleteness, badgeColor } from '../lib/profile'
+import { bartenderCompleteness, badgeColor, quizCooldown, quizCooldownMessage } from '../lib/profile'
 
 export default function BartenderProfile() {
   const { bartenderProfile, updateBartenderProfile, currentUser } = useApp()
@@ -33,6 +33,8 @@ export default function BartenderProfile() {
     quizAttemptAt: bartenderProfile?.quizAttemptAt ?? null,
   }
   const pct = bartenderCompleteness(draft)
+  const cooldown = quizCooldown(bartenderProfile?.quizAttemptAt)
+  const hasQuizResult = bartenderProfile?.quizScore != null
 
   const toggleSkill = (s: string) => {
     setSkills((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))
@@ -75,8 +77,8 @@ export default function BartenderProfile() {
           <div>
             <strong>Quiz de conhecimento</strong>
             <div className="muted">
-              {bartenderProfile?.quizScore != null
-                ? `${bartenderProfile.quizScore}% · ${bartenderProfile.quizBadge}`
+              {hasQuizResult
+                ? `${bartenderProfile?.quizScore}% · ${bartenderProfile?.quizBadge}`
                 : 'Ainda não realizado'}
             </div>
           </div>
@@ -89,9 +91,16 @@ export default function BartenderProfile() {
             </span>
           )}
         </div>
-        <Link to="/quiz" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }}>
-          {bartenderProfile?.quizScore != null ? 'Refazer quiz' : 'Fazer quiz'}
-        </Link>
+        {!cooldown.canStart && cooldown.nextAttemptAt && (
+          <div className="alert info" style={{ marginTop: 10, marginBottom: 0 }}>
+            {quizCooldownMessage(cooldown.nextAttemptAt)}
+          </div>
+        )}
+        {cooldown.canStart && (
+          <Link to="/quiz" className="btn btn-secondary btn-sm" style={{ marginTop: 10 }}>
+            {hasQuizResult ? 'Refazer quiz' : 'Fazer quiz'}
+          </Link>
+        )}
       </div>
 
       {saved && <div className="alert success">Perfil salvo!</div>}
