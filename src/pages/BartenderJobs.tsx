@@ -7,11 +7,14 @@ import {
   formatBRL,
   formatDateBR,
   JOB_STATUS_LABEL,
+  quizCooldown,
+  quizCooldownMessage,
 } from '../lib/profile'
 
 export default function BartenderJobs() {
   const { data, currentUser, bartenderProfile, getEmployer, getUser } = useApp()
   const eligibility = canApply(bartenderProfile)
+  const cooldown = quizCooldown(bartenderProfile?.quizAttemptAt)
   const jobs = data.jobs
     .filter((j) => j.status === 'open')
     .slice()
@@ -27,9 +30,18 @@ export default function BartenderJobs() {
           Para se candidatar: {eligibility.reasons.join(' · ')}.
           <div style={{ marginTop: 8 }}>
             <Link to="/perfil">Completar perfil</Link>
-            {' · '}
-            <Link to="/quiz">Fazer quiz</Link>
+            {cooldown.canStart && (
+              <>
+                {' · '}
+                <Link to="/quiz">
+                  {bartenderProfile?.quizScore != null ? 'Refazer quiz' : 'Fazer quiz'}
+                </Link>
+              </>
+            )}
           </div>
+          {!cooldown.canStart && cooldown.nextAttemptAt && (
+            <div style={{ marginTop: 8 }}>{quizCooldownMessage(cooldown.nextAttemptAt)}</div>
+          )}
           <div className="progress-bar" style={{ marginTop: 10 }}>
             <span style={{ width: `${bartenderCompleteness(bartenderProfile)}%` }} />
           </div>
