@@ -1,0 +1,19 @@
+{
+  "name": "CrewBar",
+  "short_name": "CrewBar",
+  "description": "Marketplace de bartenders freelancers para bars e eventos",
+  "start_url": "/crewbar/",
+  "scope": "/crewbar/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/crewbar/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
